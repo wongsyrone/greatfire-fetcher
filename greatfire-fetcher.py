@@ -188,7 +188,10 @@ try:
     # handle invalid domains
     validDomainResultList = [item for item in resultList if is_valid_domain(item)]
 
+    # to lower
+    lowerValidDomainResultList = [item.lower() for item in validDomainResultList]
+
     # write file
-    write_file('\n'.join(validDomainResultList))
+    write_file('\n'.join(lowerValidDomainResultList))
 except:
     traceback.print_exc(file=sys.stdout)
