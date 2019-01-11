@@ -10,7 +10,6 @@ import sys
 import traceback
 import re
 import bs4
-import validators
 import requests
 
 # https://zh.greatfire.org/analyzer
@@ -48,6 +47,13 @@ else:
 AlexaTop1000URL = 'https://zh.greatfire.org/search/alexa-top-1000-domains'
 DomainsURL = 'https://zh.greatfire.org/search/domains'
 BlockedURL = 'https://zh.greatfire.org/search/blocked'
+
+domainPattern = re.compile(
+    r'^(:?(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|'  # domain pt.1
+    r'([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|'  # domain pt.2
+    r'([a-zA-Z0-9][-_a-zA-Z0-9]{0,61}[a-zA-Z0-9]))\.)+'  # domain pt.3
+    r'([a-zA-Z]{2,13}|(xn--[a-zA-Z0-9]{2,30}))$'  # TLD
+)
 
 # for page count
 # max length of digits from backwards
@@ -149,7 +155,7 @@ def do_url(url, proxies):
 
 def is_valid_domain(domainStr):
     try:
-        return validators.domain(domainStr)
+        return domainPattern.fullmatch(domainStr) != None
     except:
         return False
 
