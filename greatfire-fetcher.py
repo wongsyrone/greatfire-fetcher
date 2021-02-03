@@ -23,7 +23,7 @@ import requests
 
 # Whether we should use proxy
 # Configure them if set to 'True'
-UseProxy = True
+UseProxy = False
 
 # some default values can be overwritten
 
@@ -97,7 +97,7 @@ def get_first_page_and_count(url, proxies):
         if req.status_code != requests.codes.ok:
             return None
         pageRawHTML = req.text
-        mysoup = bs4.BeautifulSoup(pageRawHTML, features='html.parser')
+        mysoup = bs4.BeautifulSoup(pageRawHTML, features='lxml')
         entry = mysoup.select('li[class="pager-last last"] a')
         href = entry[0].attrs["href"]
         total_page_count = int(hrefPageParamPattern.findall(href)[0])
@@ -121,7 +121,7 @@ def get_page_content(url, pageIndex, proxies):
         req = requests.get(url=url, params={"page": pageIndex}, proxies=proxies)
         if req.status_code != requests.codes.ok:
             return None
-        return bs4.BeautifulSoup(req.text, features='html.parser')
+        return bs4.BeautifulSoup(req.text, features='lxml')
     except:
         traceback.print_exc(file=sys.stdout)
         return None
@@ -144,8 +144,8 @@ def do_url(url, proxies, getAllPagesEvenIfWeHaveBigPageCount=DefaultGetAllPagesE
     # the actual page one (it doesn't need ?page=<num> parameter)
     populate_domain_blockPercent(tmpDict['soupIns'])
     # get page range from the actual page two
-    if not getAllPagesEvenIfWeHaveBigPageCount and total_page_count > maxPageCount:
-        pageRange = range(1, maxPageCount)
+    if not getAllPagesEvenIfWeHaveBigPageCount and total_page_count > maxPageCount+1:
+        pageRange = range(1, maxPageCount+1)
     else:
         # only when we specify we should fetch all pages or we have only a few to fetch
         pageRange = range(1, total_page_count)
@@ -193,7 +193,7 @@ if __name__ == '__main__':
         # to lower
         lowerValidDomainResultList = [item.lower() for item in validDomainResultList]
 
-        # write file
-        write_file('\n'.join(lowerValidDomainResultList))
+        # write sorted file
+        write_file('\n'.join(sorted(lowerValidDomainResultList)))
     except:
         traceback.print_exc(file=sys.stdout)
