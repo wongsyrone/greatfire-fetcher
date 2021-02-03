@@ -4,7 +4,7 @@
 
 # Use this script under clean DNS result and net tunnel
 
-# Copyright (c) 2019 wongsyrone
+# Copyright (c) 2019-2021 wongsyrone
 
 import sys
 import traceback
@@ -38,7 +38,7 @@ if UseProxy:
     # Should install dependency to support SOCKS protocol
     myProxies = {
         'http': 'http://127.0.0.1:1088',
-        'https': 'https://127.0.0.1:1088'
+        'https': 'http://127.0.0.1:1088',
     }
 else:
     myProxies = None
@@ -64,16 +64,15 @@ hrefPageParamPattern = re.compile(r'(?<=page=)\d+')
 domainDict = {}
 
 
-def populate_domain_blockPercent(rawHTML):
+def populate_domain_blockPercent(soup_instance):
     """
     fill blocked domain list
-    :param rawHTML:
+    :param soup_instance:
     :return: None
     """
-    if rawHTML is None:
+    if soup_instance is None:
         raise TypeError
-    mysoup = bs4.BeautifulSoup(rawHTML, features='html.parser')
-    entries = mysoup.select('td[class="first"]')
+    entries = soup_instance.select('td[class="first"]')
     # table layout:
     #   domain-name  date  block-percent  tags
     for entry in entries:
@@ -90,7 +89,7 @@ def get_first_page_and_count(url, proxies):
     get first page raw HTML and page Count
     :param url:
     :param proxies:
-    :return: {rawHTML, pageCount} or None if error occurred
+    :return: {rawHTML, pageCount, soupIns} or None if error occurred
     """
     try:
         print(f'handling {url} and get count')
@@ -103,7 +102,7 @@ def get_first_page_and_count(url, proxies):
         href = entry[0].attrs["href"]
         total_page_count = int(hrefPageParamPattern.findall(href)[0])
         print(f'{url} has pageCount {total_page_count} <= plus one to get actual page count')
-        return {'rawHTML': pageRawHTML, 'pageCount': total_page_count}
+        return {'rawHTML': pageRawHTML, 'pageCount': total_page_count, 'soupIns': mysoup}
     except:
         traceback.print_exc(file=sys.stdout)
         return None
@@ -115,14 +114,14 @@ def get_page_content(url, pageIndex, proxies):
     :param url:
     :param pageIndex:
     :param proxies:
-    :return: HTML in str or None if error occurred
+    :return: BeautifulSoup Instance or None if error occurred
     """
     try:
         print(f'handling {url} page {pageIndex}')
         req = requests.get(url=url, params={"page": pageIndex}, proxies=proxies)
         if req.status_code != requests.codes.ok:
             return None
-        return req.text
+        return bs4.BeautifulSoup(req.text, features='html.parser')
     except:
         traceback.print_exc(file=sys.stdout)
         return None
@@ -143,8 +142,7 @@ def do_url(url, proxies, getAllPagesEvenIfWeHaveBigPageCount=DefaultGetAllPagesE
     last_page_num = tmpDict['pageCount']
     total_page_count = last_page_num + 1
     # the actual page one (it doesn't need ?page=<num> parameter)
-    html = tmpDict['rawHTML']
-    populate_domain_blockPercent(html)
+    populate_domain_blockPercent(tmpDict['soupIns'])
     # get page range from the actual page two
     if not getAllPagesEvenIfWeHaveBigPageCount and total_page_count > maxPageCount:
         pageRange = range(1, maxPageCount)
@@ -152,11 +150,11 @@ def do_url(url, proxies, getAllPagesEvenIfWeHaveBigPageCount=DefaultGetAllPagesE
         # only when we specify we should fetch all pages or we have only a few to fetch
         pageRange = range(1, total_page_count)
     for i in pageRange:
-        html = get_page_content(url, i, proxies)
-        if html is None:
+        soup = get_page_content(url, i, proxies)
+        if soup is None:
             print(f"fail to get {url} page {i}")
             raise ConnectionError
-        populate_domain_blockPercent(html)
+        populate_domain_blockPercent(soup)
 
 
 def is_valid_domain(domainStr):
